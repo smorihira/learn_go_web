@@ -1,4 +1,3 @@
-/*
 package main
 
 import (
@@ -33,7 +32,7 @@ var (
 // the followings are the template IO functions
 func initSc() *bufio.Scanner {
 	sc := bufio.NewScanner(os.Stdin)
-	sc.Buffer([]byte{}, math.MaxInt64) // どでか入力対策
+	sc.Buffer([]byte{}, INF) // どでか入力対策
 	return sc
 }
 
@@ -268,4 +267,3 @@ func nroot(n int, a int) int { // n乗根を二分探索
 	}
 	return l
 }
-*/
