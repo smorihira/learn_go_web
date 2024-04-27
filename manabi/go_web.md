@@ -31,7 +31,7 @@
       ``` go
       func authenticate(w http.ResponseWriter, r *http.Request) {
         r.ParseForm()
-        user, _ := data.UserByEmail(r.PostFormValue("email")) // 中でDBアクセスするのか？
+        user, _ := data.UserByEmail(r.PostFormValue("email")) // dataパッケージは後で作る
         if user.Password == data.Encrypt(r.PostFormValue("password")) { // ハッシュ化(偉い)
             session := user.CreateSession() // セッション作成(偉い)
             cookie := http.Cookie { // クッキーの作成(まあまあ)
@@ -113,10 +113,57 @@
       ```
     - defineアクションがテンプレートの宣言
     - templateアクションが他のテンプレートのレンダリング(railsでいうパーシャル)
-      - テンプレート名とファイル名は一致する必要ない
-      - 同じテンプレート名のものが複数ある場合はどうなるの？
-    - {{ .Uuid }}のようにデータを埋め込みことができる
-      - データはどこから？`ExecuteTemplate`に渡したthreadsと関係ある？
+        - テンプレート名とファイル名は一致する必要ない
+        - 同じテンプレート名のものが複数ある場合はどうなるの？
+    - 構造体のスライスを渡し{{ .Topic }}のようにデータを埋め込みことができる
+        - データは`ExecuteTemplate`に渡す
+        - {{ range . }}...{{ end }}で渡されたデータの数だけ繰り返しhtmlを生成できる
+        - 与えられた構造体のフィールド(Topic等)だけでなく、その構造体のメソッドも{{ .NumReplies }}のように呼び出すことができる
+          - rails的感覚だとビューの中でDBアクセスするのが気持ち悪い
+
+- DBの扱い
+    - postgre上でDBを作成
+        - `createdb [DB名]`
+    - 初期設定用に実行するクエリ(テーブル作成等)をまとめたスクリプトファイル(.sql)を用意し実行できる
+        - `psql -f [sqlファイル名] -d [DB名]`
+    - DBへの接続
+        - DBへの接続プールを表すsql.DBへのポインタ型グローバル変数を用意し、この変数を介してクエリを発行する
+        - プールを複数個用意してGoルーチンを用いて並行的にDBへ接続することも可能
+     ``` go
+     import "database/sql"
+     var Db *sql.DB
+
+     func init() {
+     	var err error
+     	Db, err = sql.Open("postgres", "dbname=chitchat sslmode=disable")
+     	if err != nil {
+     		log.Fatal(err)
+     	}
+     	return
+     } 
+     ```
+    - クエリの発行は*sql.Rows型の値を返すQuery関数により次のように行える
+        - `Db.Query("select ... where thread_id = $1", thread.Id)`
+        - 返り値が1行のみな場合は*sql.Row型の値を返すQueryRow関数を用いることもできる
+
+- サーバの起動
+    - 構造体Serverを作成し、`ListenAndServe`を呼び出すだけで起動可能
+      ``` go
+      server := &http.Server {
+        Addr:     "0.0.0.0:8000",
+        Handler:  mux,
+      }
+      server.ListenAndServe()
+      ```
+
+- まとめ (`net/http`と`html/template`と`database/sql`がすごいだけ)
+    - マルチプレクサを作成し`HandleFunc`で各ハンドラへルーティングをする
+    - アクションが埋め込まれたテンプレートファイルを作成する
+    - 各ハンドラ内で次の処理を行う
+        - DBアクセスをしデータの取得等をする
+        - テンプレートファイルを`ParseFiles`によりパースしテンプレートの作成
+        - データとテンプレートを渡して`ExecuteTemplate`を実行する
+    - ポートを指定してサーバを作成し`ListenAndServe`によりサーバを起動する
       
 
 
